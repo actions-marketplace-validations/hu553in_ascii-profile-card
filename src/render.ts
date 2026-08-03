@@ -105,7 +105,7 @@ const keyValueLine = (
       ? layout.valueColumn - prefix.length - 1
       : layout.ruleWidth - prefix.length - plainValue.length - 1;
   const dotCount = Math.max(target, 0);
-  const dots = dotCount > 0 ? `${".".repeat(dotCount)} ` : "";
+  const dots = dotCount > 0 ? `${".".repeat(dotCount)} ` : " ";
 
   return {
     plain: `${prefix}${dots}${plainValue}`,
