@@ -154,8 +154,8 @@ action.
 
 Requirements:
 
-- Bun 1.3.14
-- [ascii-image-converter 1.13.1](https://github.com/TheZoraiz/ascii-image-converter/releases/tag/v1.13.1)
+- Bun
+- [ascii-image-converter](https://github.com/TheZoraiz/ascii-image-converter)
 - [GitHub CLI](https://cli.github.com)
 - `xmllint`
 
@@ -167,8 +167,9 @@ bun check
 bun check:fix
 ```
 
-`bun check` runs formatting, linting, action and workflow validation, TypeScript, unused dependency
-checks, a production dependency audit, and a complete example render with XML and content checks.
+`bun check` runs formatting, linting, action, workflow, and Renovate configuration validation,
+TypeScript, unused dependency checks, a production dependency audit, and a complete example render
+with XML and content checks.
 
 ## Releases
 
