@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { renderArt } from "./art";
 import type { Config } from "./config";
+import { XML_TEXT_PATTERN } from "./config";
 
 // Renders the generative art into a temp dir (it is an intermediate — only
 // the SVGs get published), then converts it to ASCII with
@@ -46,14 +47,24 @@ export const generateAsciiArt = async (
       );
     }
 
-    // The converter prints some errors to stdout and still exits 0.
-    if (stdout.startsWith("Error")) {
-      throw new Error(`ascii-image-converter failed:\n${stdout}`);
+    if (!XML_TEXT_PATTERN.test(stdout)) {
+      throw new Error(
+        "ascii-image-converter returned characters forbidden in XML 1.0. Check ascii.flags."
+      );
     }
 
     // Trim only trailing newlines: space-only rows are real art content
     // (dark regions of the field) and must keep their place.
-    return stdout.replace(/\n+$/u, "").split("\n");
+    const lines = stdout.replace(/\n+$/u, "").split("\n");
+    if (
+      lines.length !== rows ||
+      lines.some((line) => line.length !== config.art.columns)
+    ) {
+      throw new Error(
+        `ascii-image-converter must return ${String(config.art.columns)} columns and ${String(rows)} rows. Check ascii.flags.`
+      );
+    }
+    return lines;
   } finally {
     rmSync(workDir, { force: true, recursive: true });
   }

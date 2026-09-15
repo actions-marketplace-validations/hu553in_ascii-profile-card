@@ -13,6 +13,9 @@ art:
   contrast: 2.6
   octaves: 4
 
+ascii:
+  flags: []
+
 card:
   align: left
   lowercase: false
@@ -21,7 +24,11 @@ card:
     - { type: kv, key: Role, value: 'Mascot @ GitHub' }
     - { type: kv, key: Uptime, value: '{uptime} on GitHub' }
     - { type: blank }
-    - { type: kv, key: Stack, value: 'Ruby, Go, TypeScript' }
+    - type: kv
+      key: Stack
+      value: |-
+        Ruby, Go,
+        TypeScript
     - { type: kv, key: Interests, value: 'Open source, octopuses, cats' }
     - { type: blank }
     - { type: section, title: Contact }
@@ -45,7 +52,7 @@ layout:
   paddingPx: 16
   rowHeightPx: 20
   ruleWidth: 56
-  valueColumn: 20
+  valueColumn: 20 # minimum: grows to fit the longest key when align is left
 
 output:
   dark: dark_mode.svg

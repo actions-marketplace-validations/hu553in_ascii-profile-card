@@ -98,7 +98,23 @@ Only `card.lines` is required. The complete copy-ready configuration, including 
 | `blank`   | None           | Empty row                                     |
 
 `card.align` aligns values to a shared column (`left`) or the right edge (`right`). `card.lowercase`
-applies lowercase after live values are inserted.
+applies lowercase after live values are inserted. For left alignment, `layout.valueColumn` is a
+minimum: longer keys move the value column for the entire card so all rows stay aligned.
+
+Use a YAML literal block to split a value across rows:
+
+```yaml
+- type: kv
+  key: Backend
+  value: |-
+    Go, Java/Kotlin, Spring,
+    Node.js, Python/Django, gRPC
+```
+
+Continuation rows omit the key and dot leader and follow `card.align`. There is no automatic
+wrapping. Trailing line breaks are ignored; internal blank rows are preserved. The SVG and ASCII art
+grow to fit all rows. Limits: 48 entries, 256 rows, and 120 characters per value, including line
+breaks.
 
 ### Live placeholders
 
@@ -113,7 +129,7 @@ applies lowercase after live values are inserted.
 | `{loc}`              | Lifetime additions minus deletions                         |
 | `{locAdded}`         | Lifetime additions, rendered with the theme's add color    |
 | `{locDeleted}`       | Lifetime deletions, rendered with the theme's delete color |
-| `{uptime}`           | Years and months since `uptimeStart`                       |
+| `{uptime}`           | Years and months since `uptimeStart`, using UTC dates      |
 
 Stats are fetched lazily: unused placeholder groups make no API requests. LOC values use GitHub's
 precomputed weekly code-frequency data for owned, non-fork repositories and may omit repositories
@@ -123,15 +139,19 @@ for which GitHub does not provide statistics.
 
 - `art` controls the seed, `columns` / `rows` (rows is a minimum — the art grows to match a taller
   info column), noise, warp, contour bands, and contrast.
-- `ascii.flags` — extra `ascii-image-converter` flags as an argument array (`--dimensions` is
-  derived from `art.columns` / `art.rows`).
+- `ascii.flags` is an array of extra converter arguments. Output must remain plain text at the
+  dimensions set by `art.columns` and the rendered row count.
 - `layout` controls font, spacing, rule width, value column, padding, and corner radius.
 - `themes.dark` and `themes.light` define SVG colors.
-- `output.dark` and `output.light` set the generated file names.
+- `output.dark` and `output.light` set the generated file names and must differ, ignoring case.
 - `login` selects the stats account and defaults to the repository owner.
 
 The generated SVG grows to fit the configured rows and longest line, then scales to the width of the
 README column.
+
+Use a monospaced font; match `charWidthPx` and `rowHeightPx` to its character size. Emoji, wide
+characters, and some combining sequences may not align. Card text and font names are normalized to
+Unicode NFC; characters forbidden by XML 1.0 are rejected.
 
 ## How it works
 
@@ -163,13 +183,14 @@ Requirements:
 brew install TheZoraiz/ascii-image-converter/ascii-image-converter
 bun i
 CONFIG="$(cat example-config.yml)" GITHUB_TOKEN="$(gh auth token)" bun generate
+bun test
 bun check
 bun check:fix
 ```
 
-`bun check` runs formatting, linting, action, workflow, and Renovate configuration validation,
-TypeScript, unused dependency checks, a production dependency audit, and a complete example render
-with XML and content checks.
+`bun check` runs formatting, linting, action, hook, workflow, and Renovate configuration validation,
+TypeScript, unused dependency checks, tests, a production dependency audit, and a complete example
+render with XML and content checks.
 
 ## Releases
 
