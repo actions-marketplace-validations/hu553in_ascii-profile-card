@@ -13,16 +13,41 @@ const svgFileName = z
   .string()
   .regex(/^[\w.-]+\.svg$/u, "expected a plain *.svg file name");
 
+const MAX_CARD_ROWS = 256;
+
+// XML 1.0 character range.
+// oxlint-disable-next-line no-control-regex -- this validates XML's allowed character ranges.
+export const XML_TEXT_PATTERN =
+  /^[\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]*$/u;
+
+const xmlText = z
+  .string()
+  .regex(XML_TEXT_PATTERN, "contains a character forbidden in XML 1.0")
+  .normalize("NFC");
+
+// YAML block scalars may include a trailing newline; it is not a card row.
+export const valueLines = (value: string) =>
+  value.replaceAll(/\r\n?/gu, "\n").replace(/\n+$/u, "").split("\n");
+
 const lineSchema = z.discriminatedUnion("type", [
-  z.object({ text: z.string().min(1).max(80), type: z.literal("header") }),
-  z.object({ title: z.string().min(1).max(80), type: z.literal("section") }),
+  z.object({ text: xmlText.min(1).max(80), type: z.literal("header") }),
+  z.object({ title: xmlText.min(1).max(80), type: z.literal("section") }),
   z.object({ type: z.literal("blank") }),
   z.object({
-    key: z.string().min(1).max(40),
+    key: xmlText.min(1).max(40),
     type: z.literal("kv"),
-    value: z.string().min(1).max(120),
+    value: xmlText.min(1).max(120),
   }),
 ]);
+
+export type CardLine = z.infer<typeof lineSchema>;
+
+export const getCardRowCount = (lines: readonly CardLine[]): number =>
+  lines.reduce(
+    (count, line) =>
+      count + (line.type === "kv" ? valueLines(line.value).length : 1),
+    0
+  );
 
 const themeSchema = z.object({
   added: hexColor,
@@ -44,7 +69,7 @@ const configSchema = z.object({
       octaves: z.int().min(1).max(8).default(4),
       // MINIMUM rows: the art grows to match the info column when the card
       // has more lines.
-      rows: z.int().min(8).max(256).default(24),
+      rows: z.int().min(8).max(MAX_CARD_ROWS).default(24),
       scale: z.number().min(0.5).max(16).default(2.4),
       seed: z.string().min(1).max(64).default("daily"),
       warp: z.number().min(0).max(8).default(2.4),
@@ -56,13 +81,7 @@ const configSchema = z.object({
     .object({
       // Extra ascii-image-converter flags, passed as-is (argv array, no
       // shell); --dimensions is derived from art.columns/rows.
-      flags: z
-        .array(z.string().min(1).max(64))
-        .max(16)
-        .default([])
-        .refine((flags) => !flags.includes("--dimensions"), {
-          message: "use art.columns / art.rows instead of --dimensions",
-        }),
+      flags: z.array(z.string().min(1).max(64)).max(16).default([]),
     })
     .prefault({}),
 
@@ -70,7 +89,13 @@ const configSchema = z.object({
     // "left" pads values to a shared column; "right" pads them flush to
     // the line end, like the classic neofetch cards.
     align: z.enum(["left", "right"]).default("left"),
-    lines: z.array(lineSchema).min(1).max(48),
+    lines: z
+      .array(lineSchema)
+      .min(1)
+      .max(48)
+      .refine((lines) => getCardRowCount(lines) <= MAX_CARD_ROWS, {
+        message: `card exceeds ${MAX_CARD_ROWS} rows after expanding multiline values`,
+      }),
     // Render every card text lowercase (dynamic API values included).
     lowercase: z.boolean().default(false),
   }),
@@ -80,8 +105,7 @@ const configSchema = z.object({
       charWidthPx: z.number().min(4).max(24).default(9.9),
       columnGapPx: z.number().min(0).max(96).default(24),
       cornerRadiusPx: z.number().min(0).max(48).default(15),
-      fontFamily: z
-        .string()
+      fontFamily: xmlText
         .max(200)
         .default("'JetBrains Mono', 'Cascadia Code', Consolas, monospace"),
       fontSizePx: z.number().min(8).max(32).default(16),
@@ -105,6 +129,10 @@ const configSchema = z.object({
     .object({
       dark: svgFileName.default("dark_mode.svg"),
       light: svgFileName.default("light_mode.svg"),
+    })
+    .refine(({ dark, light }) => dark.toLowerCase() !== light.toLowerCase(), {
+      message: "dark and light output file names must differ, ignoring case",
+      path: ["light"],
     })
     .prefault({}),
 
@@ -137,7 +165,6 @@ const configSchema = z.object({
 });
 
 export type Config = z.infer<typeof configSchema>;
-export type CardLine = Config["card"]["lines"][number];
 export type Theme = Config["themes"]["dark"];
 
 // The config arrives as inline YAML (the action's `config` input). YAML is

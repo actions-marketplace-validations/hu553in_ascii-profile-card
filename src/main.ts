@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { generateAsciiArt } from "./ascii";
-import { loadConfig } from "./config";
+import { getCardRowCount, loadConfig } from "./config";
 import { fetchStats } from "./github";
 import { renderSvg } from "./render";
 
@@ -32,7 +32,7 @@ for (const line of config.card.lines) {
 }
 
 // The art grows to match a taller info column (never shrinks below art.rows).
-const artRows = Math.max(config.art.rows, config.card.lines.length);
+const artRows = Math.max(config.art.rows, getCardRowCount(config.card.lines));
 
 const [art, stats] = await Promise.all([
   generateAsciiArt(config, artRows),

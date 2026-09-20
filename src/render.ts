@@ -1,4 +1,5 @@
 import type { CardLine, Config, Theme } from "./config";
+import { valueLines } from "./config";
 import type { Stats } from "./github";
 
 const escapeXml = (text: string) =>
@@ -24,11 +25,11 @@ const uptime = (uptimeStart: string | undefined) => {
   const start = new Date(uptimeStart);
   const now = new Date();
   let months =
-    (now.getFullYear() - start.getFullYear()) * 12 +
-    now.getMonth() -
-    start.getMonth();
+    (now.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    now.getUTCMonth() -
+    start.getUTCMonth();
 
-  if (now.getDate() < start.getDate()) {
+  if (now.getUTCDate() < start.getUTCDate()) {
     months -= 1;
   }
 
@@ -45,7 +46,7 @@ const uptime = (uptimeStart: string | undefined) => {
 };
 
 // Sentinels wrap {locAdded}/{locDeleted} through escaping so the final
-// spans can color them (control chars cannot appear in YAML plain text).
+// spans can color them. These reserved characters are rejected in config text.
 const ADD_OPEN = "\u0001";
 const ADD_CLOSE = "\u0002";
 const DEL_OPEN = "\u0003";
@@ -89,29 +90,31 @@ interface RenderedLine {
   spans: string;
 }
 
-// `key: .... value` with a dot leader. align "left" pads the value to a
-// shared column (valueColumn); align "right" pads it flush to the line end
-// (ruleWidth), like the classic neofetch cards.
+// A missing key marks a continuation row without a dot leader.
 const keyValueLine = (
   layout: Config["layout"],
   align: "left" | "right",
-  key: string,
+  key: string | undefined,
   value: string
 ): RenderedLine => {
-  const prefix = `. ${key}: `;
+  const prefix = key === undefined ? "" : `. ${key}: `;
   const plainValue = stripSentinels(value);
   const target =
-    align === "left"
-      ? layout.valueColumn - prefix.length - 1
-      : layout.ruleWidth - prefix.length - plainValue.length - 1;
-  const dotCount = Math.max(target, 0);
-  const dots = dotCount > 0 ? `${".".repeat(dotCount)} ` : " ";
+    (align === "left"
+      ? layout.valueColumn
+      : layout.ruleWidth - plainValue.length) - prefix.length;
+  const leader =
+    key === undefined
+      ? " ".repeat(Math.max(target, 0))
+      : `${".".repeat(Math.max(target - 1, 0))} `;
+  const keySpan =
+    key === undefined
+      ? ""
+      : `<tspan class="dots">. </tspan><tspan class="key">${escapeXml(key)}</tspan>: `;
 
   return {
-    plain: `${prefix}${dots}${plainValue}`,
-    spans:
-      `<tspan class="dots">. </tspan><tspan class="key">${escapeXml(key)}</tspan>: ` +
-      `<tspan class="dots">${dots}</tspan><tspan class="value">${colorizeSentinels(escapeXml(value))}</tspan>`,
+    plain: `${prefix}${leader}${plainValue}`,
+    spans: `${keySpan}<tspan class="dots">${leader}</tspan><tspan class="value">${colorizeSentinels(escapeXml(value))}</tspan>`,
   };
 };
 
@@ -122,45 +125,41 @@ const ruleLine = (
 ): RenderedLine => {
   const text = isHeader ? `${label} ` : `- ${label} `;
   const dashes = "—".repeat(Math.max(layout.ruleWidth - text.length, 0));
-  const labelSpan = isHeader
-    ? `${escapeXml(label)} `
-    : `- ${escapeXml(label)} `;
-
   return {
     plain: text + dashes,
-    spans: `${labelSpan}<tspan class="dots">${dashes}</tspan>`,
+    spans: `${escapeXml(text)}<tspan class="dots">${dashes}</tspan>`,
   };
 };
 
-// With card.lowercase, casing is applied here — after interpolation — so
-// that dynamic values (e.g. language names from the GitHub API) follow it
-// too.
+// Apply casing after interpolation so fetched language names follow card.lowercase.
 const renderLine = (
   line: CardLine,
   stats: Stats,
   config: Config
-): RenderedLine => {
+): RenderedLine[] => {
   const cased = (text: string) =>
     config.card.lowercase ? text.toLowerCase() : text;
 
   // oxlint-disable-next-line default-case -- exhaustive over the CardLine discriminated union; TypeScript errors here if a new variant appears.
   switch (line.type) {
     case "blank": {
-      return { plain: "", spans: "" };
+      return [{ plain: "", spans: "" }];
     }
     case "header": {
-      return ruleLine(config.layout, cased(line.text), true);
+      return [ruleLine(config.layout, cased(line.text), true)];
     }
     case "kv": {
-      return keyValueLine(
-        config.layout,
-        config.card.align,
-        cased(line.key),
-        cased(interpolate(line.value, stats, config))
+      return valueLines(line.value).map((value, index) =>
+        keyValueLine(
+          config.layout,
+          config.card.align,
+          index === 0 ? cased(line.key) : undefined,
+          cased(interpolate(value, stats, config))
+        )
       );
     }
     case "section": {
-      return ruleLine(config.layout, cased(line.title), false);
+      return [ruleLine(config.layout, cased(line.title), false)];
     }
   }
 };
@@ -171,9 +170,17 @@ export const renderSvg = (
   stats: Stats,
   theme: Theme
 ): string => {
-  const { layout } = config;
-  const infoLines = config.card.lines.map((line) =>
-    renderLine(line, stats, config)
+  const layout = { ...config.layout };
+  for (const line of config.card.lines) {
+    if (line.type === "kv") {
+      const key = config.card.lowercase ? line.key.toLowerCase() : line.key;
+      // Reserve ". " before the key and ":  " after it, even without dots.
+      layout.valueColumn = Math.max(layout.valueColumn, key.length + 5);
+    }
+  }
+  const renderConfig = { ...config, layout };
+  const infoLines = config.card.lines.flatMap((line) =>
+    renderLine(line, stats, renderConfig)
   );
   const artCols = Math.max(...art.map((line) => line.length));
   const infoCols = Math.max(...infoLines.map((line) => line.plain.length));
@@ -215,10 +222,10 @@ export const renderSvg = (
 text, tspan {white-space: pre;}
 </style>
 <rect width="${String(width)}px" height="${String(height)}px" fill="${theme.background}" rx="${String(layout.cornerRadiusPx)}"/>
-<text fill="${theme.text}">
+<text fill="${theme.text}" xml:space="preserve">
 ${artSpans}
 </text>
-<text fill="${theme.text}">
+<text fill="${theme.text}" xml:space="preserve">
 ${infoSpans}
 </text>
 </svg>
