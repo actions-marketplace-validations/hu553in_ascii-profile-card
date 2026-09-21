@@ -2,7 +2,7 @@
   "name": "ascii-profile-card",
   "version": "1.2.0",
   "private": true,
-  "description": "GitHub Action that generates Neofetch-style SVG profile cards with daily ASCII art and live GitHub stats.",
+  "description": "GitHub Action that generates Neofetch-style SVG profile cards with daily ASCII art and GitHub stats.",
   "license": "MIT",
   "author": "Ruslan Khasanshin",
   "repository": "https://github.com/hu553in/ascii-profile-card",

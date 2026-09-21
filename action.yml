@@ -1,6 +1,6 @@
 name: ASCII profile card
 description: >-
-  GitHub Action that generates Neofetch-style SVG profile cards with daily ASCII art and live GitHub
+  GitHub Action that generates Neofetch-style SVG profile cards with daily ASCII art and GitHub
   stats.
 author: Ruslan Khasanshin
 branding:
