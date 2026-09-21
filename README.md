@@ -2,9 +2,8 @@
 
 [![CI](https://github.com/hu553in/ascii-profile-card/actions/workflows/ci.yml/badge.svg)](https://github.com/hu553in/ascii-profile-card/actions/workflows/ci.yml)
 
-GitHub Action that generates Neofetch-style SVG profile cards with daily ASCII art and live GitHub
-stats. It publishes dark and light variants to a dedicated branch that you can embed in a profile
-README.
+GitHub Action that generates Neofetch-style SVG profile cards with daily ASCII art and GitHub stats.
+It publishes dark and light variants to a dedicated branch that you can embed in a profile README.
 
 ![Example card](https://raw.githubusercontent.com/hu553in/ascii-profile-card/output/dark_mode.svg)
 
@@ -44,9 +43,9 @@ The example is generated from [`example-config.yml`](example-config.yml) by this
                    - { type: kv, key: Stars, value: '{stars}' }
    ```
 
-   The scheduled run refreshes live stats and changes the date-seeded art once a day. The `v1` tag
-   receives backward-compatible updates; use an exact tag such as `v1.1.0` or a commit SHA for an
-   immutable pin.
+   Each workflow run refreshes the stats; the date-seeded art changes daily. The `v1` tag receives
+   backward-compatible updates; use an exact tag such as `v1.1.0` or a commit SHA for an immutable
+   pin.
 
 2. Embed the generated files in your profile `README.md`, replacing `YOU` with your GitHub login:
 
@@ -98,7 +97,7 @@ Only `card.lines` is required. The complete copy-ready configuration, including 
 | `blank`   | None           | Empty row                                     |
 
 `card.align` aligns values to a shared column (`left`) or the right edge (`right`). `card.lowercase`
-applies lowercase after live values are inserted. For left alignment, `layout.valueColumn` is a
+applies lowercase after fetched values are inserted. For left alignment, `layout.valueColumn` is a
 minimum: longer keys move the value column for the entire card so all rows stay aligned.
 
 Use a YAML literal block to split a value across rows:
